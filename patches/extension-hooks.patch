@@ -19,17 +19,26 @@ index d3c6d03..bb7858d 100644
      </html>
    );
 diff --git a/apps/web/src/app/page.tsx b/apps/web/src/app/page.tsx
-index 9f392f7..dfb7fa8 100644
+index 9f392f7..6b32f27 100644
 --- a/apps/web/src/app/page.tsx
 +++ b/apps/web/src/app/page.tsx
-@@ -1,5 +1,6 @@
+@@ -1,5 +1,7 @@
  "use client";
  
 +import { ExtensionProjectMenuItems } from "@/components/extensions/ExtensionSlots";
++import { UpdatesButton } from "@/components/extensions/UpdatesButton";
  import { requestPersistentStorage } from "@/lib/persistentStorage";
  import { clearDesignOpening, forgetDesignOpening, markDesignOpening, takeUnfinishedOpening } from "@/lib/openingDesignGuard";
  import { keepShownSelection, localDesignKey, selectionHasStale, serverDesignKey, toggleDesignSelection } from "@/lib/designSelection";
-@@ -4799,6 +4800,7 @@ function Dashboard({
+@@ -4078,6 +4080,7 @@ function Dashboard({
+           <input value={query} onChange={(event) => onQueryChange(event.currentTarget.value)} placeholder={t("dashboard.searchPlaceholder")} aria-label={t("dashboard.searchLabel")} />
+         </div>
+         <div className="dashboard-topbar-actions">
++          <UpdatesButton />
+           <ThemeSwitch />
+           <LanguageSwitch />
+         </div>
+@@ -4799,6 +4802,7 @@ function Dashboard({
                        )}
                        {!selecting && openProjectMenuId === project.id ? (
                          <div className="project-card-menu" role="menu" aria-label={t("dashboard.optionsFor", { name: project.name })}>

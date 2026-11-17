@@ -19,7 +19,7 @@ lives inside layerling, so you can update layerling whenever you like and your e
 - [Quick start](#quick-start)
 - [Installing extensions](#installing-extensions)
 - [Configuration](#configuration)
-- [Updating layerling](#updating-layerling)
+- [Updating](#updating)
 - [Writing an extension](#writing-an-extension)
 - [API reference](#api-reference)
 - [Developing without Docker](#developing-without-docker)
@@ -66,32 +66,50 @@ cd layerling-extensions
 scripts/update.sh
 ```
 
-`update.sh` clones layerling into `core/`, adds the extension host, builds the image and starts it. Open
-**http://localhost:3000** and create a design: the *Extensions* group sits at the right end of the ribbon, and the
-example shapes are at the top of the shape library.
+The first run asks two things:
 
-On **Linux** (including Fedora), let the container write the settings folder first. The container runs as user 999:
+```
+layerling setup
+  Your designs are saved as .lyl files in a folder on this computer: they survive updates and
+  can be backed up, synced or opened like any other files.
 
-```bash
-sudo chown -R 999:999 extension-data
+  Folder for your designs [/Users/you/Layerling]:
+  Port to open layerling on [3000]:
 ```
 
-Docker Desktop on macOS and Windows needs nothing.
+- **Designs folder:** where layerling saves your designs, as `.lyl` files. Press Enter for `~/Layerling`, or type
+  any folder (`~` works). It's created if it doesn't exist. On a Mac, a folder outside `/Users` or `/Volumes` must
+  also be added under *Docker Desktop → Settings → Resources → File sharing*.
+- **Port:** suggests the first free port from 3000, so it won't clash with another layerling or app you already run.
+
+Then it clones layerling into `core/`, adds the extension host, builds the images and starts them. Open the address it
+prints and create a design: the *Extensions* group sits at the right end of the ribbon, and the example shapes are at
+the top of the shape library.
+
+Your answers are saved in `docker/.env`. To change them later: `scripts/update.sh --configure`.
+
+On Linux (including Fedora) the containers run as your own user, so your designs and settings stay yours: no `chown`
+needed.
 
 ### Folder layout
 
 ```
 layerling-extensions/
 ├── extensions/              your extensions, one folder each            → /extensions in the container (read-only)
-├── extension-data/          their settings, written by layerling         → /extension-data in the container
+├── extension-data/          their settings and the start page previews  → /extension-data in the container
 ├── core/                    layerling itself, made by update.sh (git-ignored; don't edit, it is reset on update)
 ├── overlay/                 the extension host: new files copied into core/
+├── updater/                 the small service behind the Updates button
 ├── patches/
-│   └── extension-hooks.patch   the hooks: 24 lines in 9 layerling files
+│   └── extension-hooks.patch   the hooks: 26 lines in 9 layerling files
 ├── scripts/
 │   ├── update.sh            get layerling, add the host, build and start
 │   └── apply.sh             add the host to any layerling checkout
-└── docker/compose.yml
+└── docker/
+    ├── compose.yml
+    └── .env                 your settings, written by update.sh (git-ignored)
+
+~/Layerling/                 your designs (or the folder you chose)    → /designs in the container
 ```
 
 ## Installing extensions
@@ -106,25 +124,59 @@ The folder name is the extension's id. Its settings are saved in `extension-data
 
 ## Configuration
 
-`docker/compose.yml` sets these for you:
+`scripts/update.sh` writes `docker/.env`. Change values there, or run `scripts/update.sh --configure`.
 
-| Variable | Default in compose | Purpose |
+| Variable | Default | Purpose |
+|---|---|---|
+| `LAYERLING_DESIGNS_DIR` | `~/Layerling` | The folder your designs are saved in. Asked on the first run. |
+| `LAYERLING_PORT` | first free from 3000 | The port on your machine. Asked on the first run. |
+| `LAYERLING_NEW_DESIGNS_ON_SERVER` | `true` | `true`: new designs go to the designs folder unless unticked on the start page. `always`: no choice. `false`: new designs stay in the browser. |
+| `LAYERLING_REF` | `main` | The layerling version to build: a tag, branch or commit. |
+| `GITHUB_TOKEN` | | Only if your copy of this repo is private: a token that can read it, so the Updates button can check it. |
+| `LAYERLING_USER`, `LAYERLING_UPDATER_USER`, `DOCKER_GID` | | Set on Linux so the containers run as you. Leave them alone. |
+| `LAYERLING_HOST_ROOT`, `LAYERLING_UPDATER_TOKEN` | | Where this folder is, and the updater's password. Written for you. |
+
+`docker/compose.yml` also sets these for layerling itself:
+
+| Variable | Value | Purpose |
 |---|---|---|
 | `LAYERLING_EXTENSIONS_DIR` | `/extensions` | Where extensions are loaded from. Unset: no extensions. |
 | `LAYERLING_EXTENSION_DATA_DIR` | `/extension-data` | Where settings and the on/off list are saved. Unset: they are kept in each browser instead. |
-| `LAYERLING_PORT` | `3000` | The port on your machine: `LAYERLING_PORT=8080 scripts/update.sh`. |
+| `LAYERLING_SHARED_PROJECTS_DIR` | `/designs` | layerling's own option for saving designs on the server: your designs folder. |
+| `LAYERLING_UPDATER_URL` | `http://updater:8787` | Where the Updates button finds the updater. Unset: no button. |
 
-Every option of layerling's own `docker/compose.yml` works here too: a shared projects folder, a default theme, simple
-mode, MCP access, reverse proxy settings. Copy the lines you need from `core/docker/compose.yml` into
-`docker/compose.yml`. They are documented in [layerling's README](https://github.com/henmedia/layerling#readme).
+Every option of layerling's own `docker/compose.yml` works here too: a default theme, simple mode, MCP access,
+reverse proxy settings. Copy the lines you need from `core/docker/compose.yml` into `docker/compose.yml`. They are
+documented in [layerling's README](https://github.com/henmedia/layerling#readme).
 
-To restart after changing compose settings, without updating layerling:
+To restart after changing settings, without updating:
 
 ```bash
 docker compose -f docker/compose.yml up -d
 ```
 
-## Updating layerling
+## Updating
+
+### From layerling
+
+Click **Updates** in the top bar of the start page, next to the theme switch. A number on it means updates are waiting.
+The window shows:
+
+- the installed and available version of **layerling** and of **layerling-extensions**, with what's new in each;
+- **Update now**, which pulls both, builds the new version and restarts layerling, showing each step as it goes.
+
+![The Updates window](docs/images/updates.png)
+
+layerling keeps working while the new version builds; it's only gone for the few seconds of the restart. You can close
+the window: the update carries on, the button shows *Updating…*, then *Reload* when it's done. With the window open,
+the page reloads by itself onto the new version.
+
+![An update running](docs/images/updating.png)
+
+If a step fails, layerling keeps running the version it had, and the window shows which step stopped and its output.
+GitHub is checked when the updater starts and then every six hours; *Check again* checks now.
+
+### From a terminal
 
 ```bash
 scripts/update.sh                           # the latest layerling (main)
@@ -132,8 +184,12 @@ LAYERLING_REF=v1.165.2 scripts/update.sh    # a release tag, branch or commit
 scripts/update.sh --no-build                # prepare core/ only, don't build
 ```
 
-Each update resets `core/` to a clean copy of layerling, adds the extension host again and rebuilds. `extensions/` and
-`extension-data/` are never touched.
+Each update first pulls this repo, then resets `core/` to a clean copy of layerling, adds the extension host again and
+rebuilds. `extensions/`, `extension-data/` and your designs folder are never touched. A pin set with `LAYERLING_REF`
+is remembered, and the Updates button keeps to it until you run `LAYERLING_REF=main scripts/update.sh`.
+
+If you changed files of this repo (other than your own extensions), the pull stops rather than overwrite them. Commit
+or stash them, or skip the pull with `scripts/update.sh --no-self-update`.
 
 ### If the patch doesn't apply
 
@@ -414,13 +470,33 @@ the folder isn't mounted.
 there. Check the browser console for `[layerling extension ...]`. The usual causes are a syntax error, no
 `export default`, or an import path without `./`.
 
-**Settings don't save / "Saving the settings failed (500)".** The container can't write `extension-data/`. On Linux:
-`sudo chown -R 999:999 extension-data`.
+**Settings don't save / "Saving the settings failed (500)".** The container can't write `extension-data/`. On Linux,
+run `scripts/update.sh` once from a terminal so the containers run as you.
 
 **Changes to my extension don't show.** Reload the page. If an old version sticks, do a hard reload (Ctrl+Shift+R /
 Cmd+Shift+R).
 
-**Port 3000 is already in use.** `LAYERLING_PORT=8080 scripts/update.sh`.
+**"port is already allocated".** Another app or container uses that port. Run `scripts/update.sh --configure` and
+take the free port it suggests.
+
+**No Updates button.** It only shows when the updater is running: `docker compose -f docker/compose.yml ps` should
+list `updater`. If it is restarting, `docker compose -f docker/compose.yml logs updater` says why; the usual cause is
+`LAYERLING_HOST_ROOT` missing from `docker/.env`, which running `scripts/update.sh` once from a terminal fixes.
+
+**The Updates window says it can't check GitHub.** The updater needs internet access to github.com. It also fails if
+`core/` was deleted: run `scripts/update.sh` from a terminal.
+
+**"GitHub wants a login for this repo".** The updater can't use the GitHub login saved on your computer. Your copy of
+layerling-extensions is private, or its `origin` (`git remote -v`) points at a repo that doesn't exist yet. layerling
+itself still updates; this repo is skipped. To include it, make the repo public, or create a
+[fine-grained token](https://github.com/settings/personal-access-tokens/new) with read access to its contents, add
+`GITHUB_TOKEN=<token>` to `docker/.env`, and run `docker compose -f docker/compose.yml up -d updater`.
+
+**An update from the button fails but works in a terminal.** On Linux, check that `DOCKER_GID` in `docker/.env` is the
+group of `/var/run/docker.sock` (`stat -c %g /var/run/docker.sock`), then run `scripts/update.sh` once from a terminal.
+
+**Designs from my old layerling are missing.** Each address (port) keeps its own browser storage. Save the designs
+as .lyl files from the old layerling and open them in this one, or copy them into your designs folder.
 
 **Fedora: permission denied reading the folders.** The mounts carry `:z` for SELinux. If you changed them, add it back.
 
@@ -428,11 +504,15 @@ Cmd+Shift+R).
 
 ## How it works
 
+- `scripts/update.sh` clones layerling into `core/`, copies `overlay/` in, applies the hook patch and builds the image.
 - A server route, `/api/extensions`, lists the folders in `LAYERLING_EXTENSIONS_DIR` and saves settings to
   `LAYERLING_EXTENSION_DATA_DIR`. Files are served from `/api/extensions/files/<id>/...`.
 - `ExtensionHost`, mounted once in the layout, fetches that list and loads each extension's `main` with `import()`.
 - The editor hands extensions the same command runner its MCP server uses, plus the objects and the selection.
 - A handful of slots render what extensions register: in the menus, the library, the inspector and the settings.
+- The Updates button talks to `/api/updates`, which passes requests to the `updater` container. The updater checks
+  both repos with `git fetch` and, for an update, runs `scripts/update.sh --ui`. That builds the new image while the
+  old one keeps running, then recreates only the layerling container. The window follows the script's progress.
 - Data an extension keeps on an object goes in `shape.extensions[<id>]`. layerling keeps unknown fields, so it is saved
   in the browser, in .lyl files and in the undo history. layerling without extensions ignores it.
 
@@ -443,7 +523,7 @@ These are the only changes to layerling's own files. Everything else is new file
 | File (under `apps/web/src/`) | Hook |
 |---|---|
 | `app/layout.tsx` | `<ExtensionHost />` after `<NewVersionNotice />` |
-| `app/page.tsx` | `<ExtensionProjectMenuItems ... />` at the top of the design's ⋮ menu |
+| `app/page.tsx` | `<UpdatesButton />` before the theme switch, and `<ExtensionProjectMenuItems ... />` at the top of the design's ⋮ menu |
 | `components/LayerlingEditor.tsx` | `useExtensionEditorBridge({ ... })` after the effect that sets `executeMcpCommandRef` |
 | `components/workplane/CommandPalette.tsx` | `const commands = useExtensionPaletteCommands(coreCommands);` |
 | `components/workplane/SecondaryToolbar.tsx` | `<ExtensionToolbarSection />` after the shapes section |
@@ -461,13 +541,21 @@ the browser. **Only install extensions you trust and have read.** The server ser
 extension's folder (no dotfiles, no paths outside it), mounts the folder read-only, and refuses settings changes from
 other sites.
 
+**The updater can control Docker.** It needs the Docker socket to rebuild and restart layerling, and access to the
+Docker socket amounts to admin rights on the machine. So it publishes no port: only layerling's server reaches it,
+inside this project's own network, with the random token in `docker/.env`. Anyone who can open your layerling can
+start an update (only an update: it runs `scripts/update.sh`, nothing else). If layerling is reachable by people you
+don't trust, put it behind a login (see layerling's README on reverse proxies), or run without the updater:
+`docker compose -f docker/compose.yml up -d layerling`, and update from a terminal.
+
 ## Limitations
 
 - Inserting an extension shape made of parts takes several undo steps: one per part, the group and the name.
 - Rebuilding a shape from its options replaces the object, so it gets a new id.
 - An object made by an extension that's later removed keeps its geometry but loses its options card.
 - The static export build (`npm run export`) isn't supported; this is for the server and Docker build.
-- Labels added by the host ("Extensions", "Extension shapes") are English only for now.
+- Labels added by the host (the Updates window, "Extensions", "Extension shapes") are English only for now.
+- The Updates button is on the start page only, not in the editor.
 
 ## Contributing
 

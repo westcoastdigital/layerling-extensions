@@ -1,3 +1,7 @@
+# A name of its own, so it never shares a project with another compose file in a folder called "docker".
+name: layerling-extensions
+
+# Values come from docker/.env, written by scripts/update.sh. Run that once from a terminal before anything else.
 services:
   layerling:
     # Built from ./core (layerling + the extension host) by scripts/update.sh.
@@ -5,6 +9,9 @@ services:
     build:
       context: ../core
       dockerfile: docker/Dockerfile
+    restart: unless-stopped
+    # On Linux, update.sh sets this to your own user, so the designs and settings stay yours.
+    user: "${LAYERLING_USER:-999:999}"
     ports:
       - "${LAYERLING_PORT:-3000}:3000"
     environment:
@@ -14,18 +21,42 @@ services:
       # The extension host. Both are read on every request: drop an extension in and reload the page.
       LAYERLING_EXTENSIONS_DIR: "/extensions"
       LAYERLING_EXTENSION_DATA_DIR: "/extension-data"
+      # Designs are saved as .lyl files in the folder you chose (LAYERLING_DESIGNS_DIR).
+      LAYERLING_SHARED_PROJECTS_DIR: "/designs"
+      # "true": new designs go to the folder unless unticked on the start page; "always": for everyone; "false": in the browser.
+      LAYERLING_NEW_DESIGNS_ON_SERVER: "${LAYERLING_NEW_DESIGNS_ON_SERVER:-true}"
+      # The Updates button talks to the updater below.
+      LAYERLING_UPDATER_URL: "http://updater:8787"
+      LAYERLING_UPDATER_TOKEN: "${LAYERLING_UPDATER_TOKEN:-}"
       # Everything from layerling's own docker/compose.yml works here too, e.g.:
-      # LAYERLING_SHARED_PROJECTS_DIR: "/shared-projects"
-    # The container runs as 999:999. On Linux (Fedora) the data folder must be writable for it:
-    #   sudo chown -R 999:999 extension-data
-    # or run as yourself instead:
-    # user: "1000:1000"
+      # LAYERLING_DEFAULT_THEME: "graphite"
     volumes:
-      - layerling-thumbnails:/app/.codex/project-thumbnails
       # :z relabels for SELinux on Fedora; Docker Desktop on a Mac ignores it.
+      - "${LAYERLING_DESIGNS_DIR:-../designs}:/designs:z"
       - ../extensions:/extensions:ro,z
       - ../extension-data:/extension-data:z
-      # - ../shared-projects:/shared-projects:z
+      # The preview pictures of the start page.
+      - ../extension-data/thumbnails:/app/.codex/project-thumbnails:z
 
-volumes:
-  layerling-thumbnails:
+  # Runs scripts/update.sh for the Updates button. It needs the Docker socket to rebuild and restart layerling,
+  # which gives it full control of Docker on this machine: it listens only inside this project's network, and
+  # layerling must send the token from docker/.env. Leave it out with: docker compose up -d layerling
+  updater:
+    image: layerling-extensions-updater:latest
+    build: ../updater
+    restart: unless-stopped
+    user: "${LAYERLING_UPDATER_USER:-0:0}"
+    group_add:
+      - "${DOCKER_GID:-0}"
+    environment:
+      LAYERLING_HOST_ROOT: "${LAYERLING_HOST_ROOT:?Run scripts/update.sh once from a terminal}"
+      LAYERLING_UPDATER_TOKEN: "${LAYERLING_UPDATER_TOKEN:-}"
+      LAYERLING_REF: "${LAYERLING_REF:-main}"
+      # Only for a private copy of this repo: a GitHub token that can read it.
+      GITHUB_TOKEN: "${GITHUB_TOKEN:-}"
+      HOME: "/tmp"
+    working_dir: "${LAYERLING_HOST_ROOT}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # The same path as on the host, so the compose file's relative paths mean the same to Docker.
+      - "${LAYERLING_HOST_ROOT}:${LAYERLING_HOST_ROOT}:z"
