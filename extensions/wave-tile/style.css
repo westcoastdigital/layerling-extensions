@@ -1,0 +1,5 @@
+/* Extensions can bring their own CSS (listed under "styles" in extension.json).
+   Scope it to your own elements; this one only tints the tile's library button. */
+.shape-menu-item[aria-label="Wave tile"] .extension-icon {
+  filter: drop-shadow(0 1px 1px rgba(79, 157, 140, 0.35));
+}

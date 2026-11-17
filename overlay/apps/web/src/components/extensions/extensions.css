@@ -1,0 +1,153 @@
+/* Extension host. Colours inherit from layerling's own cards so light, dark and graphite all work. */
+
+.extension-fields {
+  display: grid;
+  gap: 12px;
+}
+
+.extension-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.extension-field > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.extension-field input[type="text"],
+.extension-field select {
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid rgba(125, 107, 88, 0.35);
+  border-radius: 6px;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+}
+
+.extension-field select option {
+  color: initial;
+}
+
+.extension-field input[type="color"] {
+  width: 100%;
+  height: 32px;
+  padding: 2px;
+  border: 1px solid rgba(125, 107, 88, 0.35);
+  border-radius: 6px;
+  background: transparent;
+}
+
+.extension-field-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.extension-field-unit {
+  position: absolute;
+  right: 8px;
+  opacity: 0.6;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.extension-field-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.extension-icon {
+  display: block;
+  object-fit: contain;
+}
+
+.extension-shape-thumb {
+  display: grid;
+  place-items: center;
+}
+
+.extension-toolbar-section .toolbar-icon .extension-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.extension-settings {
+  display: grid;
+  gap: 14px;
+}
+
+.extension-settings-entry {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid rgba(125, 107, 88, 0.25);
+  border-radius: 8px;
+}
+
+.extension-settings-entry header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.extension-settings-entry h4 {
+  margin: 4px 0 0;
+  font-size: 14px;
+}
+
+.extension-meta,
+.extension-description {
+  margin: 0;
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+.extension-problem {
+  margin: 0;
+  color: #c0392b;
+  font-size: 13px;
+}
+
+.extension-reload {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.extension-reload button {
+  padding: 3px 10px;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.extension-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 10000;
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 10px 16px;
+  border-radius: 8px;
+  color: #fff;
+  background: rgba(40, 32, 24, 0.92);
+  font-size: 14px;
+  transform: translateX(-50%);
+  cursor: pointer;
+}

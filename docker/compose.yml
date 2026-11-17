@@ -1,0 +1,31 @@
+services:
+  layerling:
+    # Built from ./core (layerling + the extension host) by scripts/update.sh.
+    image: layerling-extended:latest
+    build:
+      context: ../core
+      dockerfile: docker/Dockerfile
+    ports:
+      - "${LAYERLING_PORT:-3000}:3000"
+    environment:
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      NEXT_TELEMETRY_DISABLED: "1"
+      # The extension host. Both are read on every request: drop an extension in and reload the page.
+      LAYERLING_EXTENSIONS_DIR: "/extensions"
+      LAYERLING_EXTENSION_DATA_DIR: "/extension-data"
+      # Everything from layerling's own docker/compose.yml works here too, e.g.:
+      # LAYERLING_SHARED_PROJECTS_DIR: "/shared-projects"
+    # The container runs as 999:999. On Linux (Fedora) the data folder must be writable for it:
+    #   sudo chown -R 999:999 extension-data
+    # or run as yourself instead:
+    # user: "1000:1000"
+    volumes:
+      - layerling-thumbnails:/app/.codex/project-thumbnails
+      # :z relabels for SELinux on Fedora; Docker Desktop on a Mac ignores it.
+      - ../extensions:/extensions:ro,z
+      - ../extension-data:/extension-data:z
+      # - ../shared-projects:/shared-projects:z
+
+volumes:
+  layerling-thumbnails:

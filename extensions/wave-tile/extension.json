@@ -1,0 +1,7 @@
+{
+  "name": "Wave tile",
+  "version": "1.0.0",
+  "description": "Example of a shape built from a generated triangle mesh: a tile with a wavy top. Shows registerShape with a mesh, options and a helper module.",
+  "main": "index.js",
+  "styles": ["style.css"]
+}

@@ -1,0 +1,220 @@
+diff --git a/apps/web/src/app/layout.tsx b/apps/web/src/app/layout.tsx
+index d3c6d03..bb7858d 100644
+--- a/apps/web/src/app/layout.tsx
++++ b/apps/web/src/app/layout.tsx
+@@ -18,6 +18,7 @@ import "./dashboardSelect.css";
+ import "./focusMode.css";
+ import "./fileBackups.css";
+ import { DiagnoseStrip } from "@/components/DiagnoseStrip";
++import { ExtensionHost } from "@/components/extensions/ExtensionHost";
+ import { HtmlSettingsRestore } from "@/components/HtmlSettingsRestore";
+ import { NewVersionNotice } from "@/components/NewVersionNotice";
+ import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
+@@ -138,6 +139,7 @@ export default function RootLayout({
+         <ServiceWorkerRegistration />
+         <DiagnoseStrip />
+         <NewVersionNotice />
++        <ExtensionHost />
+       </body>
+     </html>
+   );
+diff --git a/apps/web/src/app/page.tsx b/apps/web/src/app/page.tsx
+index 9f392f7..dfb7fa8 100644
+--- a/apps/web/src/app/page.tsx
++++ b/apps/web/src/app/page.tsx
+@@ -1,5 +1,6 @@
+ "use client";
+ 
++import { ExtensionProjectMenuItems } from "@/components/extensions/ExtensionSlots";
+ import { requestPersistentStorage } from "@/lib/persistentStorage";
+ import { clearDesignOpening, forgetDesignOpening, markDesignOpening, takeUnfinishedOpening } from "@/lib/openingDesignGuard";
+ import { keepShownSelection, localDesignKey, selectionHasStale, serverDesignKey, toggleDesignSelection } from "@/lib/designSelection";
+@@ -4799,6 +4800,7 @@ function Dashboard({
+                       )}
+                       {!selecting && openProjectMenuId === project.id ? (
+                         <div className="project-card-menu" role="menu" aria-label={t("dashboard.optionsFor", { name: project.name })}>
++                          <ExtensionProjectMenuItems projectId={project.id} projectName={project.name} onDone={() => setOpenProjectMenuId(null)} />
+                           <button type="button" role="menuitem" onClick={() => startProjectRename(project)}>
+                             <Pencil size={16} />
+                             <span>{t("common.rename")}</span>
+diff --git a/apps/web/src/components/LayerlingEditor.tsx b/apps/web/src/components/LayerlingEditor.tsx
+index 1ccd8c3..83a451d 100644
+--- a/apps/web/src/components/LayerlingEditor.tsx
++++ b/apps/web/src/components/LayerlingEditor.tsx
+@@ -166,6 +166,7 @@ import { snapShapeFootprintToVisibleGrid, visibleGridStep } from "@/lib/gridSnap
+ import { composedShapeRotation, geometryRotationDegreesForShortcut, geometryRotationDelta, rotatedGeometryShapePatch } from "@/lib/geometryRotation";
+ import { carryShapePivot, heightPatchKeepingBase, pivotAfterJoin, shapePivotFromWorld, shapePivotWorld, type PivotPoint } from "@/lib/rotationPivot";
+ import { createLocalId } from "@/lib/localIds";
++import { useExtensionEditorBridge } from "@/lib/extensions/useExtensionEditorBridge";
+ import { canEditGroupAtLevel, mcpOpenGroupSummary, openGroupLevelsStillOpen, trackOpenGroupLevels, type OpenGroupLevel } from "@/lib/openGroupParts";
+ import type { TapeMeasurementsAnswer, TapeMeasurementsRequest } from "@/lib/tapeLengthEdit";
+ import { projectExportFileName, stlNameAsksForNewFile } from "@/lib/exportNames";
+@@ -16854,6 +16855,7 @@ export function LayerlingEditor({
+   useEffect(() => {
+     executeMcpCommandRef.current = executeMcpCommand;
+   }, [executeMcpCommand]);
++  useExtensionEditorBridge({ executeMcpCommandRef, shapesRef, selectedIdsRef, commitShapes, setNotice, shapes, selectedIds });
+ 
+   useEffect(() => {
+     if (typeof window === "undefined") {
+diff --git a/apps/web/src/components/workplane/CommandPalette.tsx b/apps/web/src/components/workplane/CommandPalette.tsx
+index 03e9e98..7634dcb 100644
+--- a/apps/web/src/components/workplane/CommandPalette.tsx
++++ b/apps/web/src/components/workplane/CommandPalette.tsx
+@@ -4,6 +4,7 @@ import { Search, X } from "lucide-react";
+ import { Fragment, useEffect, useId, useMemo, useRef, useState, type ComponentType } from "react";
+ import { createPortal } from "react-dom";
+ import { GuideHelpLink } from "@/components/GuideHelpLink";
++import { useExtensionPaletteCommands } from "@/components/extensions/ExtensionSlots";
+ import { rememberCommand, searchCommands } from "@/lib/commandSearch";
+ import { t } from "@/lib/i18n";
+ import { useLanguage } from "@/lib/useLanguage";
+@@ -56,8 +57,9 @@ function writeRecent(ids: string[]) {
+  * right now stay in the list, greyed out, so the search still tells where a
+  * tool is - they just do nothing.
+  */
+-export function CommandPalette({ commands, onClose }: { commands: PaletteCommand[]; onClose: () => void }) {
++export function CommandPalette({ commands: coreCommands, onClose }: { commands: PaletteCommand[]; onClose: () => void }) {
+   useLanguage();
++  const commands = useExtensionPaletteCommands(coreCommands);
+   const listId = useId();
+   const inputRef = useRef<HTMLInputElement | null>(null);
+   const listRef = useRef<HTMLUListElement | null>(null);
+diff --git a/apps/web/src/components/workplane/SecondaryToolbar.tsx b/apps/web/src/components/workplane/SecondaryToolbar.tsx
+index 433ce42..98ac3a4 100644
+--- a/apps/web/src/components/workplane/SecondaryToolbar.tsx
++++ b/apps/web/src/components/workplane/SecondaryToolbar.tsx
+@@ -1,5 +1,6 @@
+ "use client";
+ 
++import { ExtensionToolbarSection } from "@/components/extensions/ExtensionSlots";
+ import { GuideHelpLink } from "@/components/GuideHelpLink";
+ import { FocusModeBar } from "@/components/workplane/FocusModeBar";
+ import { ProjectNameField } from "@/components/workplane/ProjectNameField";
+@@ -1472,6 +1473,7 @@ export function SecondaryToolbar({
+             </ShapeMenuPanel>,
+           ) : null}
+         </div>
++        {simpleMode ? null : <ExtensionToolbarSection disabled={historyViewActive} />}
+       </div>
+       <div className="toolbar-spacer" />
+       <div className="tool-group right" inert={historyViewActive}>
+diff --git a/apps/web/src/components/workplane/ShapeContextMenu.tsx b/apps/web/src/components/workplane/ShapeContextMenu.tsx
+index 606fb48..0c73acc 100644
+--- a/apps/web/src/components/workplane/ShapeContextMenu.tsx
++++ b/apps/web/src/components/workplane/ShapeContextMenu.tsx
+@@ -1,6 +1,7 @@
+ "use client";
+ 
+ import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
++import { useExtensionContextMenuItems } from "@/components/extensions/ExtensionSlots";
+ 
+ export type ShapeContextMenuItem = {
+   key: string;
+@@ -28,13 +29,14 @@ const isMac = () => typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(n
+  * closes on any press outside it, on Escape, on the wheel outside it and on
+  * a resize.
+  */
+-export function ShapeContextMenu({ x, y, label, items, onClose }: {
++export function ShapeContextMenu({ x, y, label, items: coreItems, onClose }: {
+   x: number;
+   y: number;
+   label: string;
+   items: ShapeContextMenuItem[];
+   onClose: () => void;
+ }) {
++  const items = useExtensionContextMenuItems(coreItems);
+   const menuRef = useRef<HTMLDivElement>(null);
+   const [position, setPosition] = useState({ left: x, top: y });
+   // Another set of items (the list of "Select other") is placed and focused anew.
+diff --git a/apps/web/src/components/workplane/ShapeInspector.tsx b/apps/web/src/components/workplane/ShapeInspector.tsx
+index 29a28bd..4a6e6ae 100644
+--- a/apps/web/src/components/workplane/ShapeInspector.tsx
++++ b/apps/web/src/components/workplane/ShapeInspector.tsx
+@@ -1,5 +1,6 @@
+ "use client";
+ 
++import { ExtensionShapeOptions } from "@/components/extensions/ExtensionSlots";
+ import { displayY, displayYTurn, insideZ, insideZTurn } from "@/lib/displayAxes";
+ import { GuideHelpLink } from "@/components/GuideHelpLink";
+ import { SnapGridMenuItems } from "@/components/workplane/SnapGridMenu";
+@@ -5101,6 +5102,7 @@ export function ShapeInspector({
+ 
+       {!minimized ? (
+         <>
++      <ExtensionShapeOptions key={`extension-options-${shape.id}`} shape={shape} disabled={frozen} />
+       {/* A name tag (#215): its card first and open; for a plain text the way there first. */}
+       {nameTagStack && onLayerText && onTextTags ? (
+         <NameTagCard
+diff --git a/apps/web/src/components/workplane/ShapeLibraryList.tsx b/apps/web/src/components/workplane/ShapeLibraryList.tsx
+index 277b2d7..dfdd65a 100644
+--- a/apps/web/src/components/workplane/ShapeLibraryList.tsx
++++ b/apps/web/src/components/workplane/ShapeLibraryList.tsx
+@@ -15,6 +15,7 @@ import {
+   type ShapeLibrarySectionId,
+ } from "@/lib/shapeLibrarySections";
+ import { useLanguage } from "@/lib/useLanguage";
++import { ExtensionShapeSection } from "@/components/extensions/ExtensionSlots";
+ 
+ /**
+  * The shape library in sections (#1170), in the one scrolling list it always was: a search field on top, the shapes
+@@ -118,6 +119,7 @@ export function ShapeLibraryList<T extends LibraryShape>({
+         ) : (
+           <>
+           {customMatchCount > 0 ? customNode : null}
++          <ExtensionShapeSection query={query} />
+           {matches.map((section) => (
+             <section key={section.id} className="shape-library-section" aria-label={sectionLabel(section.id)}>
+               <div className="shape-library-heading">
+@@ -133,6 +135,7 @@ export function ShapeLibraryList<T extends LibraryShape>({
+       ) : (
+         <>
+           {customNode}
++          <ExtensionShapeSection />
+           {recent.length > 0 ? (
+             <section className="shape-library-section shape-library-recent" aria-label={t("library.recent")}>
+               <div className="shape-library-heading">
+diff --git a/apps/web/src/components/workplane/WorkspaceSettingsModal.tsx b/apps/web/src/components/workplane/WorkspaceSettingsModal.tsx
+index dd98509..0963e62 100644
+--- a/apps/web/src/components/workplane/WorkspaceSettingsModal.tsx
++++ b/apps/web/src/components/workplane/WorkspaceSettingsModal.tsx
+@@ -1,5 +1,6 @@
+ "use client";
+ 
++import { ExtensionSettingsNavButton, ExtensionSettingsSection } from "@/components/extensions/ExtensionSlots";
+ import { GuideHelpLink } from "@/components/GuideHelpLink";
+ import { RibbonButtonsSetting } from "@/components/workplane/RibbonButtonsSetting";
+ import type { GuideSection } from "@/lib/guideLinks";
+@@ -107,7 +108,7 @@ import { MAX_TEXT_LENGTH } from "@/lib/textLength";
+ import { DEFAULT_HIRTH_BORE, DEFAULT_HIRTH_TEETH, MAX_HIRTH_TEETH, MIN_HIRTH_TEETH, MIN_HIRTH_TOOTH_HEIGHT, hirthBoreLimit, hirthToothHeightLimit } from "@/lib/hirthGeometry";
+ 
+ type WorkspaceSettings = WorkplaneWorkspaceSettings;
+-type WorkspaceSettingsSection = "appearance" | "controls" | "output" | "ribbon" | "measurement" | "workplane" | "shapes" | "history" | "backups";
++type WorkspaceSettingsSection = "appearance" | "controls" | "output" | "ribbon" | "measurement" | "workplane" | "shapes" | "history" | "backups" | "extensions";
+ // The question mark of each tab opens that tab's own part of the guide.
+ const SETTINGS_HELP_SECTION: Record<WorkspaceSettingsSection, GuideSection> = {
+   appearance: "settingsAppearance",
+@@ -119,6 +120,7 @@ const SETTINGS_HELP_SECTION: Record<WorkspaceSettingsSection, GuideSection> = {
+   shapes: "shapeSettings",
+   history: "backingUp",
+   backups: "fileBackups",
++  extensions: "settingsAppearance",
+ };
+ 
+ const MIN_WORKSPACE_SIZE = 60;
+@@ -837,6 +839,7 @@ export function WorkspaceSettingsModal({
+               <ArchiveRestore size={18} />
+               <span>{t("backups.settingsTitle")}</span>
+             </button>
++            <ExtensionSettingsNavButton active={activeSection === "extensions"} onSelect={() => setActiveSection("extensions")} />
+           </nav>
+ 
+           <div className="workspace-modal-content">
+@@ -1718,6 +1721,7 @@ export function WorkspaceSettingsModal({
+               ) : null}
+ 
+               {activeSection === "backups" ? <FileBackupSettingsSection /> : null}
++              {activeSection === "extensions" ? <ExtensionSettingsSection /> : null}
+ 
+               {activeSection === "history" ? (
+                 <>

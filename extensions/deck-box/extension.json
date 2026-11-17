@@ -1,0 +1,8 @@
+{
+  "name": "Deck box",
+  "version": "1.0.0",
+  "description": "Example extension: a parametric card deck box, plus menu items, a shape options card and settings.",
+  "author": "Jon Mather",
+  "main": "index.js",
+  "layerling": "1.165.2"
+}
