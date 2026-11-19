@@ -60,14 +60,35 @@ export type MenuItemDef = {
   run: (ctx: MenuContext) => void | Promise<void>;
 };
 
-/** One part of an extension shape: the parameters of layerling's own create_shape (kind, width, depth, height, x, z, elevation, hole, ...). */
-export type ShapePartSpec = { kind: string } & Record<string, unknown>;
+/** A triangle mesh in mm: x across, y up, z towards the front. It stands exactly where its coordinates say. */
+export type MeshSpec = { positions: number[]; normals?: number[] };
+
+/** How the parts of a group come together. */
+export type GroupSpec = {
+  /** true: a bundle - every part stays a body of its own in its own colour, and holes cut nothing (Ctrl+B). */
+  bundle?: boolean;
+  /** Show and export each part in its own colour (a group of solids normally takes one colour). */
+  multicolor?: boolean;
+  name?: string;
+  color?: string;
+};
+
+/**
+ * One part of an extension shape:
+ * - the parameters of layerling's own create_shape (kind, width, depth, height, x, z, elevation, hole, rotation ...);
+ * - a mesh of your own: { mesh, name?, color?, hole? };
+ * - a group of parts of its own: { parts, bundle?, multicolor?, name?, color? }.
+ */
+export type ShapePartSpec =
+  | ({ kind: string } & Record<string, unknown>)
+  | { mesh: MeshSpec; name?: string; color?: string; hole?: boolean }
+  | ({ parts: ShapePartSpec[] } & GroupSpec);
 
 export type ShapeBuildResult =
-  /** Built from layerling's own shapes; two or more parts are grouped (holes cut). */
-  | { parts: ShapePartSpec[]; name?: string; color?: string }
-  /** A triangle mesh in mm: x across, y up, z towards the front. */
-  | { mesh: { positions: number[]; normals?: number[] }; name?: string; color?: string };
+  /** Built from parts; two or more are grouped (holes cut), or bundled. */
+  | ({ parts: ShapePartSpec[] } & GroupSpec)
+  /** A single triangle mesh. */
+  | { mesh: MeshSpec; name?: string; color?: string };
 
 export type ShapeDef = {
   id: string;
@@ -122,6 +143,8 @@ export type EditorEvent = "change";
 /** What `activate(api)` gets. */
 export type ExtensionApi = {
   id: string;
+  /** 2: shapes can have mesh parts and groups of parts. Missing on hosts before that. */
+  apiVersion: number;
   manifest: ExtensionManifest;
   /** URL of a file in the extension's folder. */
   asset: (path: string) => string;

@@ -1,0 +1,8 @@
+{
+  "name": "Dice",
+  "version": "1.0.0",
+  "description": "Printable dice: D3, D4, D6, D8, D10, D12 and D20, with embedded, recessed or raised numbers, numbered for rolling (D&D) or spin-down (MTG).",
+  "author": "Jon Mather",
+  "main": "index.js",
+  "layerling": "1.165.2"
+}

@@ -14,20 +14,41 @@ lives inside layerling, so you can update layerling whenever you like and your e
 
 ## Contents
 
-- [What extensions can do](#what-extensions-can-do)
-- [Requirements](#requirements)
-- [Quick start](#quick-start)
-- [Installing extensions](#installing-extensions)
-- [Configuration](#configuration)
-- [Updating](#updating)
-- [Writing an extension](#writing-an-extension)
-- [API reference](#api-reference)
-- [Developing without Docker](#developing-without-docker)
-- [Troubleshooting](#troubleshooting)
-- [How it works](#how-it-works)
-- [Security](#security)
-- [Limitations](#limitations)
-- [License](#license)
+- [layerling extensions](#layerling-extensions)
+  - [Contents](#contents)
+  - [What extensions can do](#what-extensions-can-do)
+  - [Requirements](#requirements)
+  - [Quick start](#quick-start)
+    - [Folder layout](#folder-layout)
+  - [Installing extensions](#installing-extensions)
+  - [Configuration](#configuration)
+  - [Updating](#updating)
+    - [From layerling](#from-layerling)
+    - [From a terminal](#from-a-terminal)
+    - [If the patch doesn't apply](#if-the-patch-doesnt-apply)
+  - [Writing an extension](#writing-an-extension)
+    - [1. Make a folder](#1-make-a-folder)
+    - [2. Describe it in extension.json](#2-describe-it-in-extensionjson)
+    - [3. Export a function from index.js](#3-export-a-function-from-indexjs)
+    - [4. Reload the page](#4-reload-the-page)
+    - [Coordinates](#coordinates)
+  - [API reference](#api-reference)
+    - [`activate(layerling)`](#activatelayerling)
+    - [Option fields](#option-fields)
+    - [`registerShape(definition)`](#registershapedefinition)
+    - [`registerMenuItem(definition)`](#registermenuitemdefinition)
+    - [`registerShapeOptions(definition)`](#registershapeoptionsdefinition)
+    - [`registerSettings(definition)` and `layerling.settings`](#registersettingsdefinition-and-layerlingsettings)
+    - [`layerling.editor`](#layerlingeditor)
+      - [Commands](#commands)
+  - [Developing without Docker](#developing-without-docker)
+  - [Troubleshooting](#troubleshooting)
+  - [How it works](#how-it-works)
+    - [Hook points](#hook-points)
+  - [Security](#security)
+  - [Limitations](#limitations)
+  - [Contributing](#contributing)
+  - [License](#license)
 
 ## What extensions can do
 
@@ -332,6 +353,30 @@ return {
   ],
 };
 ```
+
+Parts can also be a mesh of your own, or a group of their own (nested as deep as you like):
+
+```js
+return {
+  name: "Two-colour badge",
+  bundle: true,                  // the parts stay separate bodies, each in its own colour; holes cut nothing
+  parts: [
+    { name: "Plate", color: "#1f4e8c", parts: [               // a group: its holes cut its solids
+      { mesh: { positions: plateTriangles } },                 // a mesh part stands where its coordinates say
+      { kind: "text", text: "A", hole: true, width: 10, depth: 10, height: 2, elevation: 1 },
+    ] },
+    { kind: "text", text: "A", color: "#ffffff", width: 10, depth: 10, height: 1, elevation: 1 },
+  ],
+};
+```
+
+| Part | |
+|---|---|
+| `{ kind, ... }` | One of layerling's shapes, with `create_shape`'s parameters. |
+| `{ mesh, name?, color?, hole? }` | A triangle mesh, placed exactly by its own coordinates. |
+| `{ parts, bundle?, multicolor?, name?, color? }` | A group of parts. `bundle: true` bundles them instead (Ctrl+B). `multicolor: true` shows and exports each part of a group in its own colour. |
+
+The result itself takes `bundle`, `multicolor` and `color` the same way.
 
 A part takes everything layerling's `create_shape` command takes. That covers every shape kind and its own settings:
 threads, gears, text, Gridfinity bins, hinges, springs, port openings ... The parameters are documented in

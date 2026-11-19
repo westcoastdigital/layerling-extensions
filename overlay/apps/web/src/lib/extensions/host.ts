@@ -3,6 +3,9 @@
 import type { WorkplaneShape } from "@/types/layerling";
 import type {
   ExtensionApi,
+  GroupSpec,
+  MeshSpec,
+  ShapePartSpec,
   ExtensionListing,
   ExtensionModule,
   ExtensionOption,
@@ -238,33 +241,83 @@ export async function setExtensionEnabled(extensionId: string, enabled: boolean)
 
 // ---- Shapes made by extensions -------------------------------------------------------------------------------------
 
+/** A mesh where its own coordinates put it: layerling places a mesh by the middle and bottom of its box. */
+async function importMesh(mesh: MeshSpec, extra: Record<string, unknown>) {
+  const p = mesh.positions;
+  if (!p?.length || p.length % 9 !== 0) throw new Error("A mesh needs positions: x, y, z for each corner, three corners per triangle");
+  const min = [Infinity, Infinity, Infinity];
+  const max = [-Infinity, -Infinity, -Infinity];
+  for (let index = 0; index < p.length; index += 1) {
+    min[index % 3] = Math.min(min[index % 3], p[index]);
+    max[index % 3] = Math.max(max[index % 3], p[index]);
+  }
+  return objectId(await runCommand("import_mesh", {
+    positions: p,
+    normals: mesh.normals,
+    x: (min[0] + max[0]) / 2,
+    z: (min[2] + max[2]) / 2,
+    elevation: min[1],
+    ...extra,
+  }));
+}
+
+/** Builds one part (a shape, a mesh, or a group of parts) and returns its id; every object it makes goes into made. */
+type GroupPart = { parts: ShapePartSpec[] } & GroupSpec;
+type MeshPart = { mesh: MeshSpec; name?: string; color?: string; hole?: boolean };
+const isGroupPart = (part: ShapePartSpec): part is GroupPart => Array.isArray((part as GroupPart).parts);
+const isMeshPart = (part: ShapePartSpec): part is MeshPart => Boolean((part as MeshPart).mesh) && !("kind" in part);
+
+async function buildPart(part: ShapePartSpec, made: string[]): Promise<string> {
+  if (isGroupPart(part)) return buildGroup(part, made);
+  let id: string;
+  if (isMeshPart(part)) {
+    const { mesh, hole, ...extra } = part;
+    id = await importMesh(mesh, extra);
+    made.push(id);
+    if (hole) await runCommand("update_object", { id, hole: true });
+  } else {
+    // Elevation is always given, so parts stand where the extension put them, not on a face workplane.
+    id = objectId(await runCommand("create_shape", { elevation: 0, ...part }));
+    made.push(id);
+  }
+  return id;
+}
+
+async function buildGroup(group: { parts: ShapePartSpec[] } & GroupSpec, made: string[]): Promise<string> {
+  if (!group.parts?.length) throw new Error("A group needs at least one part");
+  const ids: string[] = [];
+  for (const part of group.parts) ids.push(await buildPart(part, made));
+  let id = ids[0];
+  if (ids.length > 1) {
+    id = objectId(await runCommand(group.bundle ? "bundle_objects" : "group_objects", { ids }));
+    made.push(id);
+  }
+  const patch = {
+    ...(group.name ? { name: group.name } : {}),
+    ...(group.color ? { color: group.color } : {}),
+    ...(group.multicolor !== undefined && ids.length > 1 ? { multicolor: group.multicolor } : {}),
+  };
+  if (Object.keys(patch).length) await runCommand("update_object", { id, ...patch });
+  return id;
+}
+
 async function buildShape(def: Registered<ShapeDef>, values: ExtensionValues, previous?: WorkplaneShape) {
   const result = await def.build(values, { settings: extensionSettings(def.extensionId), previous });
   let id: string;
   const name = result.name ?? def.name;
   if ("mesh" in result) {
-    id = objectId(await runCommand("import_mesh", {
-      positions: result.mesh.positions,
-      normals: result.mesh.normals,
-      name,
-      ...(result.color ? { color: result.color } : {}),
-    }));
+    id = await importMesh(result.mesh, { name, ...(result.color ? { color: result.color } : {}) });
   } else {
     if (!result.parts?.length) throw new Error(`${def.name}: build() returned no parts`);
-    const ids: string[] = [];
+    const made: string[] = [];
     try {
-      for (const part of result.parts) {
-        // Elevation is always given, so parts stand where the extension put them, not on a face workplane.
-        ids.push(objectId(await runCommand("create_shape", { elevation: 0, ...part })));
-      }
-      id = ids.length > 1 ? objectId(await runCommand("group_objects", { ids })) : ids[0];
+      id = await buildGroup({ ...result, name }, made);
     } catch (error) {
-      // Leave nothing half-built behind.
-      const left = ids.filter((partId) => requireEditor().shapes().some((shape) => shape.id === partId));
+      // Leave nothing half-built behind: whatever of it is still on the plate (parts already grouped are gone).
+      const left = made.filter((partId) => requireEditor().shapes().some((shape) => shape.id === partId));
       if (left.length) await runCommand("delete_objects", { ids: left }).catch(() => undefined);
       throw error;
     }
-    await runCommand("update_object", { id, name, ...(result.color ? { color: result.color } : {}) });
   }
   requireEditor().setShapeExtensionData(id, def.extensionId, { ...extensionData(previous, def.extensionId), shape: def.id, values: { ...values }, builtName: name });
   await settle();
@@ -379,6 +432,7 @@ function makeApi(listing: LoadedExtension): ExtensionApi {
   const replace = <T extends { id: string; extensionId: string }>(list: T[], entry: T) => [...list.filter((item) => !(item.extensionId === id && item.id === entry.id)), entry];
   return {
     id,
+    apiVersion: 2,
     manifest: listing,
     asset: (path) => new URL(path.replace(/^\/+/, ""), new URL(listing.baseUrl, window.location.origin)).toString(),
     registerShape: (def) => { state.shapes = replace(state.shapes, own(def)); bump(); },
