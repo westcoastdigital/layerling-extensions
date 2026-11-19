@@ -3,8 +3,10 @@
 A [layerling extensions](https://github.com/westcoastdigital/layerling-extensions) extension for printable dice.
 
 - **D3, D4, D6, D8, D10, D12, D20**
-- **Roll (D&D)**: opposite faces add up to the same total (7 on a D6, 21 on a D20)
-- **Spin-down (MTG)**: every number sits next to the one before it, for counting life down; 20 starts on top
+- **Roll (D&D)**: opposite faces add up to the same total (7 on a D6, 21 on a D20), spread so no corner is all high
+  or all low; 1-2-3 counter-clockwise on a D6; odd numbers round one tip of a D10
+- **Spin-down (MTG)**: 1 on the bottom face, the highest on top, the numbers climbing in a spiral, each next to the one
+  before (the D20 matches a classic MTG spin-down face for face); or snaking round so 1 sits beside 20
 - **1, 2, 3 …** or **10, 20, 30 …**, and 0-9 / 00-90 for a D10
 - **Embedded** numbers: a second body in its own colour, flush with the faces, for two-colour printing
 - **Recessed** numbers: cut into the faces, for painting or a plain print
@@ -13,11 +15,12 @@ A [layerling extensions](https://github.com/westcoastdigital/layerling-extension
 
 ## Install
 
-Copy this `dice` folder into your `extensions/` folder and reload layerling. *Dice* appears under
-*Extension shapes* in the shape library. Change its options in the inspector and it rebuilds in place.
+Comes with layerling-extensions: *Dice* is under *Extension shapes* in the shape library. Change its options in the
+inspector and it rebuilds in place.
 
-Needs the extension host from 19 November 2026 or later (mesh parts and bundles in a shape). Update
-layerling-extensions first if *Dice* shows an error.
+To add it to another install, copy this `dice` folder into its `extensions/` folder and reload the page. It needs an
+extension host with `apiVersion` 2 or later (mesh parts and bundles in a shape); on an older one it says so, and
+*Updates → Update now* fixes that.
 
 ## Notes
 

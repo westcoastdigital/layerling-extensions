@@ -64,13 +64,14 @@ lives inside layerling, so you can update layerling whenever you like and your e
 |---|---|
 | ![A deck box with its options and a Print notes card](docs/images/shape-options.png) | ![The Extensions tab in the settings](docs/images/settings.png) |
 
-Three examples come with it, in [`extensions/`](extensions):
+Four extensions come with it, in [`extensions/`](extensions):
 
 | Example | Shows |
 |---|---|
 | [`hello-world`](extensions/hello-world/index.js) | The minimum: a toolbar button, a right-click item that lines objects up, one setting. **Copy this to start.** |
-| [`deck-box`](extensions/deck-box/index.js) | A parametric card deck box built from layerling's own shapes, an "Add a slip lid" right-click item, a *Print notes* card for every object, and settings. Uses every part of the API. |
+| [`deck-box`](extensions/deck-box/index.js) | A parametric card deck box built from layerling's own shapes, an "Add a slip lid" right-click item, a *Print notes* card for every object, and settings. Shows menu items, object options and settings together. |
 | [`wave-tile`](extensions/wave-tile/index.js) | A shape made from a generated mesh (a tile with a wavy top), split across modules, with an icon file and its own CSS. |
+| [`dice`](extensions/dice/README.md) | Printable D3, D4, D6, D8, D10, D12 and D20: rolling (D&D) or spin-down (MTG) numbering, 1-2-3 or 10-20-30, numbers embedded in their own colour, recessed or raised. A full extension: a generated mesh body, layerling's own text for the numbers, nested groups and a bundle. |
 
 ## Requirements
 
@@ -138,7 +139,9 @@ layerling-extensions/
 1. Put the extension's folder in `extensions/`. The folder must hold an `extension.json`.
 2. Reload the page.
 
-No rebuild and no restart are needed: the list of extensions is read on every page load. To remove one, delete its
+No rebuild and no restart are needed: the list of extensions is read on every page load. The exception is an
+extension that needs a newer extension host than the one built into your layerling: it says so when used. Update
+once (*Updates → Update now*, or `scripts/update.sh`), and it works from then on. To remove one, delete its
 folder. To switch one off without deleting it, untick it under *Settings → Extensions* and reload.
 
 The folder name is the extension's id. Its settings are saved in `extension-data/<folder name>.json`.
@@ -301,6 +304,7 @@ that function is called when the extension is disposed.
 | Property | |
 |---|---|
 | `layerling.id` | The extension's id (its folder name). |
+| `layerling.apiVersion` | Which features the host has: `2` adds mesh parts, nested groups and bundles in shapes. Missing on older hosts. Check it if your extension needs them: `if (!(layerling.apiVersion >= 2)) throw new Error("needs a newer layerling-extensions")`. |
 | `layerling.manifest` | The contents of `extension.json`. |
 | `layerling.asset(path)` | The URL of a file in your folder, e.g. `layerling.asset("icon.svg")`. |
 | `layerling.notify(message)` | Shows a message: in the editor's message bar, or at the bottom of the dashboard. |
@@ -517,6 +521,10 @@ there. Check the browser console for `[layerling extension ...]`. The usual caus
 
 **Settings don't save / "Saving the settings failed (500)".** The container can't write `extension-data/`. On Linux,
 run `scripts/update.sh` once from a terminal so the containers run as you.
+
+**An extension says it "needs a newer layerling-extensions", or a shape comes out as plain boxes.** The extension
+uses something the extension host built into your layerling doesn't have yet. Update once: *Updates → Update now*,
+or `scripts/update.sh` in a terminal. Then add the shape again.
 
 **Changes to my extension don't show.** Reload the page. If an old version sticks, do a hard reload (Ctrl+Shift+R /
 Cmd+Shift+R).
